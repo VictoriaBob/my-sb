@@ -1,0 +1,64 @@
+name: My build
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  cross:
+    strategy:
+      matrix:
+        include:
+          # windows
+          - name: windows-amd64
+            goos: windows
+            goarch: amd64
+            goamd64: v1
+          - name: windows-amd64-v3
+            goos: windows
+            goarch: amd64
+            goamd64: v3
+          # linux
+          - name: linux-amd64
+            goos: linux
+            goarch: amd64
+            goamd64: v1
+          - name: linux-amd64-v3
+            goos: linux
+            goarch: amd64
+            goamd64: v3
+          - name: linux-arm64
+            goos: linux
+            goarch: arm64
+      fail-fast: false
+    runs-on: ubuntu-latest
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOAMD64: ${{ matrix.goamd64 }}
+      GOARM: ${{ matrix.goarm }}
+      GOMIPS: ${{ matrix.gomips }}
+      CGO_ENABLED: 0
+      TAGS: with_quic,with_utls,with_reality_server,with_gvisor,with_clash_api,with_wireguard,with_acme
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get latest go version
+        id: version
+        run: |
+          echo go_version=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g') >> $GITHUB_OUTPUT
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ steps.version.outputs.go_version }}
+      - name: Build
+        id: build
+        run: make
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sing-box-${{ matrix.name }}
+          path: sing-box*
